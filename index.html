@@ -1,0 +1,140 @@
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بازی‌خونه | خانه‌ی بازی‌ها</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="app.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+    <a class="brand" href="index.html">
+        <span class="brand-icon">🎮</span>
+        <span>بازی‌خونه</span>
+    </a>
+
+    <div class="topbar-actions">
+        <button class="icon-button" id="themeButton" aria-label="تغییر تم">☀️</button>
+
+        <div class="palette-wrap">
+            <button class="icon-button" id="paletteButton"
+                    aria-label="انتخاب رنگ" aria-expanded="false">🎨</button>
+
+            <div class="palette-menu" id="paletteMenu">
+                <p>انتخاب رنگ اصلی</p>
+                <button class="palette-option" data-palette="violet">
+                    <span class="color-dot violet-dot"></span> بنفش
+                </button>
+                <button class="palette-option" data-palette="blue">
+                    <span class="color-dot blue-dot"></span> آبی
+                </button>
+                <button class="palette-option" data-palette="green">
+                    <span class="color-dot green-dot"></span> سبز
+                </button>
+                <button class="palette-option" data-palette="orange">
+                    <span class="color-dot orange-dot"></span> نارنجی
+                </button>
+                <button class="palette-option" data-palette="pink">
+                    <span class="color-dot pink-dot"></span> صورتی
+                </button>
+            </div>
+        </div>
+    </div>
+</header>
+
+<main class="container">
+    <section class="hero">
+        <div>
+            <span class="eyebrow">GAME CENTER</span>
+            <h1>به بازی‌خونه خوش اومدی!</h1>
+            <p>بازی مورد علاقه‌ات رو انتخاب کن و ازش لذت ببر.</p>
+        </div>
+        <div class="hero-art">🕹️</div>
+    </section>
+
+    <section class="section-heading">
+        <div>
+            <span class="eyebrow">LIBRARY</span>
+            <h2>کتابخونه‌ی بازی‌ها</h2>
+        </div>
+        <span class="game-count">۲ بازی فعال</span>
+    </section>
+
+    <section class="game-grid">
+
+        <!-- Tic Tac Toe -->
+        <a class="game-card" href="games/tic-tac-toe.html">
+            <div class="game-card-art tic-art">
+                <svg class="tic-symbol cross-symbol" viewBox="0 0 100 100"
+                     aria-hidden="true">
+                    <path d="M25 25 L75 75 M75 25 L25 75"/>
+                </svg>
+
+                <svg class="tic-symbol circle-symbol" viewBox="0 0 100 100"
+                     aria-hidden="true">
+                    <circle cx="50" cy="50" r="32"/>
+                </svg>
+
+                <svg class="tic-symbol triangle-symbol" viewBox="0 0 100 100"
+                     aria-hidden="true">
+                    <path d="M50 15 L87 82 L13 82 Z"/>
+                </svg>
+            </div>
+
+            <div class="game-card-content">
+                <span class="game-tag">استراتژی · دونفره</span>
+                <h3>دوز</h3>
+                <p>در برابر ربات بازی کن یا با دوستت رقابت کن.</p>
+                <span class="play-link">شروع بازی <span>←</span></span>
+            </div>
+        </a>
+
+        <!-- Sudoku -->
+        <a class="game-card" href="games/sudoku.html">
+            <div class="game-card-art sudoku-art">
+                <div class="mini-sudoku">
+                    <span>1</span><span>2</span><span>3</span>
+                    <span>4</span><span>5</span><span>6</span>
+                    <span>7</span><span>8</span><span>9</span>
+                </div>
+            </div>
+
+            <div class="game-card-content">
+                <span class="game-tag">فکری · تک‌نفره</span>
+                <h3>سودوکو</h3>
+                <p>تمرکزت رو به چالش بکش و جدول رو حل کن.</p>
+                <span class="play-link">شروع بازی <span>←</span></span>
+            </div>
+        </a>
+
+        <!-- Future games -->
+        <div class="game-card game-card-disabled">
+            <div class="game-card-art future-art">♟</div>
+            <div class="game-card-content">
+                <span class="game-tag">به‌زودی</span>
+                <h3>شطرنج</h3>
+                <p>این بازی در نسخه‌های آینده اضافه می‌شه.</p>
+                <span class="coming-soon">به‌زودی</span>
+            </div>
+        </div>
+
+        <div class="game-card game-card-disabled">
+            <div class="game-card-art future-art">🎲</div>
+            <div class="game-card-content">
+                <span class="game-tag">به‌زودی</span>
+                <h3>بازی جدید</h3>
+                <p>بازی‌های بیشتری در راه هستن.</p>
+                <span class="coming-soon">به‌زودی</span>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <span>بازی‌خونه</span>
+        <span>یک جا برای بازی و سرگرمی</span>
+    </footer>
+</main>
+</body>
+</html>

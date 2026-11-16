@@ -1,0 +1,1351 @@
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بازی سودوکو | بازی‌خونه</title>
+
+    <link rel="stylesheet" href="../style.css">
+    <script src="../app.js" defer></script>
+
+    <style>
+        .sudoku-game {
+            max-width: 1050px;
+            margin: auto;
+        }
+
+        .sudoku-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .sudoku-toolbar {
+            display: flex;
+            align-items: end;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .sudoku-toolbar .control-group {
+            flex: 1;
+            min-width: 125px;
+        }
+
+        .sudoku-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .stat-card {
+            background: var(--surface, rgba(128,128,128,.09));
+            border: 1px solid var(--border, rgba(128,128,128,.2));
+            border-radius: 14px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat-card span {
+            display: block;
+            font-size: 12px;
+            opacity: .7;
+            margin-bottom: 5px;
+        }
+
+        .stat-card strong {
+            font-size: 20px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .stat-card.danger strong {
+            color: #ef4444;
+        }
+
+        .sudoku-status {
+            min-height: 24px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .sudoku-board-wrap {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            overflow-x: auto;
+            padding: 4px;
+        }
+
+        .sudoku-board {
+            --sudoku-size: 9;
+            display: grid;
+            grid-template-columns: repeat(var(--sudoku-size), minmax(0, 1fr));
+            width: min(100%, 590px);
+            aspect-ratio: 1;
+            border: 2px solid var(--border, #888);
+            border-radius: 12px;
+            overflow: hidden;
+            background: var(--border, #888);
+            gap: 1px;
+        }
+
+        /* رنگ پایه خانه‌ها؛ از رنگ تم استفاده می‌کند */
+        .sudoku-cell {
+            position: relative;
+            min-width: 0;
+            min-height: 0;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+
+            background: var(--card, var(--surface, #191e31));
+            color: var(--text, #f1f2f8);
+
+            font-family: inherit;
+            font-size: clamp(11px, 2.5vw, 23px);
+            font-weight: 600;
+
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            transition: background .15s, box-shadow .15s;
+        }
+
+        .sudoku-cell.fixed {
+            background: var(--surface, #20263a);
+            font-weight: 900;
+        }
+
+        /* خانه‌های هم‌سطر، ستون و بلوک */
+        .sudoku-cell.related {
+            background: color-mix(
+                in srgb,
+                var(--primary, #7656df) 9%,
+                var(--card, var(--surface, #191e31))
+            );
+        }
+
+        /* خانه‌هایی که عدد یکسان دارند */
+        .sudoku-cell.same-number {
+            background: color-mix(
+                in srgb,
+                var(--primary, #7656df) 17%,
+                var(--card, var(--surface, #191e31))
+            );
+        }
+
+        /* خانه انتخاب‌شده */
+        .sudoku-cell.selected {
+            background: color-mix(
+                in srgb,
+                var(--primary, #7656df) 25%,
+                var(--card, var(--surface, #191e31))
+            );
+
+            box-shadow: inset 0 0 0 2px var(--primary, #7656df);
+            z-index: 2;
+        }
+
+        .sudoku-cell.incorrect {
+            background: color-mix(
+                in srgb,
+                #ef4444 16%,
+                var(--card, var(--surface, #191e31))
+            );
+
+            box-shadow: inset 0 0 0 2px #ef4444;
+            color: #ff6b6b;
+        }
+
+        .sudoku-cell.box-right {
+            border-right: 2px solid var(--border, #888);
+        }
+
+        .sudoku-cell.box-bottom {
+            border-bottom: 2px solid var(--border, #888);
+        }
+
+        /* یادداشت‌های مدادی */
+        .sudoku-cell .notes {
+            position: absolute;
+            inset: 2px;
+
+            display: grid;
+            grid-template-columns: repeat(var(--note-columns, 3), 1fr);
+            grid-template-rows: repeat(var(--note-rows, 3), 1fr);
+
+            align-items: center;
+            justify-items: center;
+
+            font-size: clamp(7px, 1.15vw, 11px);
+            font-weight: 500;
+            line-height: 1;
+
+            color: var(--text, #ddd);
+            opacity: .8;
+            pointer-events: none;
+        }
+
+        .sudoku-cell .notes span {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .number-pad {
+            display: grid;
+            grid-template-columns: repeat(9, minmax(0, 1fr));
+            gap: 7px;
+            width: 100%;
+        }
+
+        .number-button {
+            min-width: 0;
+            min-height: 55px;
+
+            border: 1px solid var(--border, rgba(128,128,128,.2));
+            border-radius: 12px;
+
+            background: var(--surface, rgba(128,128,128,.08));
+            color: var(--text, inherit);
+
+            font-family: inherit;
+            font-size: 20px;
+            font-weight: 800;
+
+            cursor: pointer;
+
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 2px;
+
+            transition: .15s;
+        }
+
+        .number-button:hover:not(:disabled) {
+            border-color: var(--primary, #7656df);
+            background: color-mix(
+                in srgb,
+                var(--primary, #7656df) 12%,
+                var(--surface, transparent)
+            );
+        }
+
+        .number-button:disabled {
+            opacity: .35;
+            cursor: default;
+        }
+
+        .number-button small {
+            font-size: 10px;
+            font-weight: 500;
+            opacity: .7;
+        }
+
+        .sudoku-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 9px;
+        }
+
+        .tool-button {
+            min-width: 110px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .tool-button.active {
+            background: var(--primary, #7656df);
+            color: white;
+            border-color: var(--primary, #7656df);
+        }
+
+        .sudoku-help {
+            text-align: center;
+            font-size: 12px;
+            opacity: .65;
+            line-height: 1.8;
+        }
+
+        .sudoku-info {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            opacity: .8;
+        }
+
+        @media (max-width: 600px) {
+            .sudoku-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .number-pad {
+                grid-template-columns: repeat(6, minmax(0, 1fr));
+                gap: 5px;
+            }
+
+            .number-button {
+                min-height: 46px;
+                font-size: 18px;
+            }
+
+            .sudoku-cell {
+                font-size: clamp(10px, 4vw, 19px);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header class="topbar">
+    <a class="brand" href="../index.html">
+        <span class="brand-icon">🎮</span>
+        <span>بازی‌خونه</span>
+    </a>
+
+    <div class="topbar-actions">
+        <button class="icon-button" id="themeButton">☀️</button>
+
+        <div class="palette-wrap">
+            <button class="icon-button" id="paletteButton">🎨</button>
+
+            <div class="palette-menu" id="paletteMenu">
+                <p>انتخاب رنگ اصلی</p>
+
+                <button class="palette-option" data-palette="violet">
+                    <span class="color-dot violet-dot"></span> بنفش
+                </button>
+
+                <button class="palette-option" data-palette="blue">
+                    <span class="color-dot blue-dot"></span> آبی
+                </button>
+
+                <button class="palette-option" data-palette="green">
+                    <span class="color-dot green-dot"></span> سبز
+                </button>
+
+                <button class="palette-option" data-palette="orange">
+                    <span class="color-dot orange-dot"></span> نارنجی
+                </button>
+
+                <button class="palette-option" data-palette="pink">
+                    <span class="color-dot pink-dot"></span> صورتی
+                </button>
+            </div>
+        </div>
+    </div>
+</header>
+
+<main class="page-content sudoku-game">
+
+    <a class="back-link" href="../index.html">
+        ← بازگشت به منوی اصلی
+    </a>
+
+    <section class="page-heading">
+        <span class="eyebrow">SUDOKU</span>
+        <h1>بازی سودوکو</h1>
+
+        <p>
+            اعداد رو طوری در جدول قرار بده که در هیچ سطر، ستون یا بلوکی تکراری نباشن.
+        </p>
+    </section>
+
+    <section class="panel sudoku-panel">
+
+        <div class="sudoku-toolbar">
+
+            <div class="control-group">
+                <label for="gridSize">اندازه جدول</label>
+
+                <select id="gridSize">
+                    <option value="3">۳ × ۳</option>
+                    <option value="6">۶ × ۶</option>
+                    <option value="9" selected>۹ × ۹</option>
+                    <option value="12">۱۲ × ۱۲</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="difficulty">درجه سختی</label>
+
+                <select id="difficulty">
+                    <option value="easy">آسان</option>
+                    <option value="medium" selected>متوسط</option>
+                    <option value="hard">سخت</option>
+                </select>
+            </div>
+
+            <button class="primary-button" id="newPuzzle">
+                جدول جدید
+            </button>
+
+        </div>
+
+        <div class="sudoku-stats">
+
+            <div class="stat-card">
+                <span>زمان بازی</span>
+                <strong id="timer">00:00</strong>
+            </div>
+
+            <div class="stat-card" id="mistakeCard">
+                <span>اشتباهات باقی‌مانده</span>
+                <strong id="mistakes">۵</strong>
+            </div>
+
+            <div class="stat-card">
+                <span>راهنمای باقی‌مانده</span>
+                <strong id="hints">۳</strong>
+            </div>
+
+            <div class="stat-card">
+                <span>خانه‌های خالی</span>
+                <strong id="emptyCount">--</strong>
+            </div>
+
+        </div>
+
+        <div class="sudoku-info">
+            <span id="selectedText">خانه‌ای انتخاب نشده</span>
+            <span id="progressText">پیشرفت: ۰٪</span>
+        </div>
+
+        <p class="sudoku-status" id="status">
+            برای شروع یکی از خانه‌های خالی رو انتخاب کن.
+        </p>
+
+        <div class="sudoku-board-wrap">
+            <div class="sudoku-board" id="board" style="--sudoku-size:9"></div>
+        </div>
+
+        <div>
+            <p style="text-align:center;font-weight:700;margin-bottom:10px">
+                تعداد خانه‌های باقی‌مانده برای هر عدد
+            </p>
+
+            <div class="number-pad" id="numberPad"></div>
+        </div>
+
+        <div class="sudoku-actions">
+
+            <button class="secondary-button tool-button" id="pencilButton">
+                ✏️ مداد
+            </button>
+
+            <button class="secondary-button tool-button" id="eraseButton">
+                ⌫ پاک کردن
+            </button>
+
+            <button class="secondary-button tool-button" id="hintButton">
+                💡 راهنما
+            </button>
+
+        </div>
+
+        <p class="sudoku-help">
+            با کیبورد هم می‌تونی عدد وارد کنی.
+            <br>
+            کلیدهای جهت‌دار برای جابه‌جایی بین خانه‌ها و Backspace برای پاک کردن استفاده می‌شن.
+            <br>
+            در حالت مداد، اعداد به‌صورت یادداشت موقت ثبت می‌شن.
+        </p>
+
+    </section>
+</main>
+
+<script>
+"use strict";
+
+/* =========================================
+   SUDOKU GAME
+   ========================================= */
+
+const $ = id => document.getElementById(id);
+
+const boardElement = $("board");
+const padElement = $("numberPad");
+const statusElement = $("status");
+
+const symbols = "123456789ABC".split("");
+
+let n = 9;
+let boxRows = 3;
+let boxCols = 3;
+
+let solution = [];
+let puzzle = [];
+let fixedCells = [];
+
+let selected = null;
+
+let notes = [];
+let incorrectCells = [];
+
+let pencilMode = false;
+let gameOver = false;
+let gameWon = false;
+
+let mistakesLeft = 5;
+let hintsLeft = 3;
+
+let elapsedSeconds = 0;
+let timerInterval = null;
+
+/* =========================================
+   SETTINGS
+   ========================================= */
+
+const difficultySettings = {
+    easy: {
+        removeRate: 0.35,
+        mistakes: 8,
+        hints: 5
+    },
+
+    medium: {
+        removeRate: 0.48,
+        mistakes: 5,
+        hints: 3
+    },
+
+    hard: {
+        removeRate: 0.58,
+        mistakes: 3,
+        hints: 1
+    }
+};
+
+/* =========================================
+   UTILITIES
+   ========================================= */
+
+function shuffle(array) {
+    const result = [...array];
+
+    for (let i = result.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+
+        [result[i], result[j]] =
+            [result[j], result[i]];
+    }
+
+    return result;
+}
+
+function getBoxDimensions(size) {
+    if (size === 3) return [3, 1];
+    if (size === 6) return [2, 3];
+    if (size === 9) return [3, 3];
+
+    return [3, 4];
+}
+
+function getPattern(r, c) {
+    return (
+        r * boxCols +
+        Math.floor(r / boxRows) +
+        c
+    ) % n;
+}
+
+function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+
+    return (
+        String(minutes).padStart(2, "0") +
+        ":" +
+        String(remainingSeconds).padStart(2, "0")
+    );
+}
+
+/* =========================================
+   GENERATE SOLUTION
+   ========================================= */
+
+function createSolution() {
+    const base = Array.from({ length: n }, (_, i) => i);
+
+    const shuffledSymbols = shuffle(symbols.slice(0, n));
+
+    const rowGroups = [];
+    const colGroups = [];
+
+    for (let i = 0; i < n; i += boxRows) {
+        rowGroups.push(
+            shuffle(base.slice(i, i + boxRows))
+        );
+    }
+
+    for (let i = 0; i < n; i += boxCols) {
+        colGroups.push(
+            shuffle(base.slice(i, i + boxCols))
+        );
+    }
+
+    const rows = rowGroups.flat();
+    const cols = colGroups.flat();
+
+    return rows.map(r =>
+        cols.map(c =>
+            shuffledSymbols[getPattern(r, c)]
+        )
+    );
+}
+
+/* =========================================
+   GENERATE PUZZLE
+   ========================================= */
+
+function createPuzzle() {
+    const difficulty = $("difficulty").value;
+    const settings = difficultySettings[difficulty];
+
+    solution = createSolution();
+    puzzle = solution.map(row => [...row]);
+
+    const total = n * n;
+
+    const removeCount =
+        Math.floor(total * settings.removeRate);
+
+    const indexes = shuffle(
+        Array.from({ length: total }, (_, i) => i)
+    );
+
+    indexes.slice(0, removeCount).forEach(index => {
+        const r = Math.floor(index / n);
+        const c = index % n;
+
+        puzzle[r][c] = "";
+    });
+
+    fixedCells = puzzle.map(row =>
+        row.map(value => value !== "")
+    );
+
+    notes = Array.from({ length: n }, () =>
+        Array.from({ length: n }, () => new Set())
+    );
+
+    incorrectCells = Array.from({ length: n }, () =>
+        Array(n).fill(false)
+    );
+
+    selected = null;
+
+    pencilMode = false;
+    gameOver = false;
+    gameWon = false;
+
+    mistakesLeft = settings.mistakes;
+    hintsLeft = settings.hints;
+
+    elapsedSeconds = 0;
+
+    $("pencilButton").classList.remove("active");
+
+    stopTimer();
+    startTimer();
+
+    updateStats();
+    renderBoard();
+    renderNumberPad();
+    updateSelectedText();
+
+    statusElement.textContent =
+        "جدول جدید آماده است. موفق باشی!";
+}
+
+/* =========================================
+   TIMER
+   ========================================= */
+
+function startTimer() {
+    stopTimer();
+
+    timerInterval = setInterval(() => {
+        if (gameOver || gameWon) return;
+
+        elapsedSeconds++;
+
+        $("timer").textContent =
+            formatTime(elapsedSeconds);
+
+    }, 1000);
+}
+
+function stopTimer() {
+    if (timerInterval !== null) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+}
+
+/* =========================================
+   CELL RELATIONS
+   ========================================= */
+
+function isRelated(r, c) {
+    if (!selected) return false;
+
+    const sr = selected.r;
+    const sc = selected.c;
+
+    if (r === sr || c === sc) return true;
+
+    return (
+        Math.floor(r / boxRows) === Math.floor(sr / boxRows) &&
+        Math.floor(c / boxCols) === Math.floor(sc / boxCols)
+    );
+}
+
+function hasConflict(r, c) {
+    const value = puzzle[r][c];
+
+    if (!value) return false;
+
+    for (let i = 0; i < n; i++) {
+        if (i !== c && puzzle[r][i] === value) return true;
+        if (i !== r && puzzle[i][c] === value) return true;
+    }
+
+    const startRow = Math.floor(r / boxRows) * boxRows;
+    const startCol = Math.floor(c / boxCols) * boxCols;
+
+    for (let row = startRow; row < startRow + boxRows; row++) {
+        for (let col = startCol; col < startCol + boxCols; col++) {
+            if (
+                (row !== r || col !== c) &&
+                puzzle[row][col] === value
+            ) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+/* =========================================
+   NOTE CLEANUP
+   ========================================= */
+
+function removePeerNotes(value, row, col) {
+    for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+
+            if (r === row && c === col) continue;
+
+            const sameRow = r === row;
+            const sameColumn = c === col;
+
+            const sameBox =
+                Math.floor(r / boxRows) === Math.floor(row / boxRows) &&
+                Math.floor(c / boxCols) === Math.floor(col / boxCols);
+
+            if (sameRow || sameColumn || sameBox) {
+                notes[r][c].delete(value);
+            }
+        }
+    }
+}
+
+/* =========================================
+   RENDER BOARD
+   ========================================= */
+
+function renderBoard() {
+    boardElement.innerHTML = "";
+
+    boardElement.style.setProperty(
+        "--sudoku-size",
+        n
+    );
+
+    const noteColumns = n > 9 ? 4 : 3;
+    const noteRows = Math.ceil(n / noteColumns);
+
+    boardElement.style.setProperty("--note-columns", noteColumns);
+    boardElement.style.setProperty("--note-rows", noteRows);
+
+    for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+
+            const cell = document.createElement("button");
+            const value = puzzle[r][c];
+
+            cell.type = "button";
+            cell.className = "sudoku-cell";
+
+            cell.setAttribute(
+                "aria-label",
+                `سطر ${r + 1} ستون ${c + 1}`
+            );
+
+            if (fixedCells[r][c]) {
+                cell.classList.add("fixed");
+            }
+
+            if (
+                selected &&
+                selected.r === r &&
+                selected.c === c
+            ) {
+                cell.classList.add("selected");
+            } else if (isRelated(r, c)) {
+                cell.classList.add("related");
+            }
+
+            if (
+                selected &&
+                value &&
+                puzzle[selected.r][selected.c] === value
+            ) {
+                cell.classList.add("same-number");
+            }
+
+            if (incorrectCells[r][c]) {
+                cell.classList.add("incorrect");
+            }
+
+            if (value) {
+                cell.textContent = value;
+            } else if (notes[r][c].size > 0) {
+
+                const noteContainer =
+                    document.createElement("div");
+
+                noteContainer.className = "notes";
+
+                symbols.slice(0, n).forEach(symbol => {
+                    const span = document.createElement("span");
+
+                    if (notes[r][c].has(symbol)) {
+                        span.textContent = symbol;
+                    }
+
+                    noteContainer.appendChild(span);
+                });
+
+                cell.appendChild(noteContainer);
+            }
+
+            if (
+                c < n - 1 &&
+                (c + 1) % boxCols === 0
+            ) {
+                cell.classList.add("box-right");
+            }
+
+            if (
+                r < n - 1 &&
+                (r + 1) % boxRows === 0
+            ) {
+                cell.classList.add("box-bottom");
+            }
+
+            cell.addEventListener("click", () => {
+                selected = { r, c };
+
+                renderBoard();
+                updateSelectedText();
+                renderNumberPad();
+            });
+
+            boardElement.appendChild(cell);
+        }
+    }
+}
+
+/* =========================================
+   NUMBER PAD
+   ========================================= */
+
+function getRemainingCount(symbol) {
+    let correctCount = 0;
+
+    for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+            if (
+                puzzle[r][c] === solution[r][c] &&
+                puzzle[r][c] === symbol
+            ) {
+                correctCount++;
+            }
+        }
+    }
+
+    return Math.max(0, n - correctCount);
+}
+
+function renderNumberPad() {
+    padElement.innerHTML = "";
+
+    symbols.slice(0, n).forEach(symbol => {
+        const button = document.createElement("button");
+
+        button.type = "button";
+        button.className = "number-button";
+
+        const number = document.createElement("span");
+        number.textContent = symbol;
+
+        const remaining = document.createElement("small");
+        const count = getRemainingCount(symbol);
+
+        remaining.textContent = `باقی: ${count}`;
+
+        button.appendChild(number);
+        button.appendChild(remaining);
+
+        button.disabled =
+            gameOver ||
+            gameWon ||
+            count === 0;
+
+        button.addEventListener("click", () => {
+            enterNumber(symbol);
+        });
+
+        padElement.appendChild(button);
+    });
+}
+
+/* =========================================
+   INPUT
+   ========================================= */
+
+function enterNumber(value) {
+    if (gameOver || gameWon) return;
+
+    if (!selected) {
+        statusElement.textContent =
+            "اول یک خانه از جدول انتخاب کن.";
+
+        return;
+    }
+
+    const { r, c } = selected;
+
+    if (fixedCells[r][c]) {
+        statusElement.textContent =
+            "این خانه از ابتدا پر شده و قابل تغییر نیست.";
+
+        return;
+    }
+
+    if (pencilMode) {
+        toggleNote(value);
+        return;
+    }
+
+    const previousValue = puzzle[r][c];
+
+    if (previousValue === value) return;
+
+    puzzle[r][c] = value;
+    notes[r][c].clear();
+
+    const isCorrect = value === solution[r][c];
+
+    if (!isCorrect) {
+        incorrectCells[r][c] = true;
+
+        mistakesLeft--;
+
+        statusElement.textContent =
+            `❌ عدد اشتباهه! ${mistakesLeft} فرصت باقی مونده.`;
+
+        if (mistakesLeft <= 0) {
+            mistakesLeft = 0;
+
+            updateStats();
+            renderBoard();
+            renderNumberPad();
+
+            finishGame(false);
+            return;
+        }
+
+    } else {
+        incorrectCells[r][c] = false;
+
+        // حذف یادداشت همین عدد از سطر، ستون و بلوک
+        removePeerNotes(value, r, c);
+
+        statusElement.textContent =
+            "✅ درست بود!";
+    }
+
+    renderBoard();
+    renderNumberPad();
+
+    updateStats();
+    checkCompletion();
+}
+
+/* =========================================
+   NOTES / PENCIL
+   ========================================= */
+
+function togglePencil() {
+    if (gameOver || gameWon) return;
+
+    pencilMode = !pencilMode;
+
+    $("pencilButton").classList.toggle(
+        "active",
+        pencilMode
+    );
+
+    statusElement.textContent = pencilMode
+        ? "✏️ حالت یادداشت فعال شد. اعداد رو برای یادداشت انتخاب کن."
+        : "حالت یادداشت غیرفعال شد.";
+}
+
+function toggleNote(value) {
+    if (!selected) return;
+
+    const { r, c } = selected;
+
+    if (fixedCells[r][c] || puzzle[r][c]) {
+        statusElement.textContent =
+            "برای یادداشت باید یک خانه خالی انتخاب کنی.";
+
+        return;
+    }
+
+    const cellNotes = notes[r][c];
+
+    if (cellNotes.has(value)) {
+        cellNotes.delete(value);
+    } else {
+        cellNotes.add(value);
+    }
+
+    renderBoard();
+
+    statusElement.textContent =
+        "یادداشت ذخیره شد.";
+}
+
+/* =========================================
+   ERASE
+   ========================================= */
+
+function eraseSelected() {
+    if (gameOver || gameWon) return;
+
+    if (!selected) {
+        statusElement.textContent =
+            "اول یک خانه انتخاب کن.";
+
+        return;
+    }
+
+    const { r, c } = selected;
+
+    if (fixedCells[r][c]) {
+        statusElement.textContent =
+            "خانه‌های اولیه قابل پاک کردن نیستند.";
+
+        return;
+    }
+
+    puzzle[r][c] = "";
+    incorrectCells[r][c] = false;
+    notes[r][c].clear();
+
+    renderBoard();
+    renderNumberPad();
+
+    updateStats();
+
+    statusElement.textContent =
+        "خانه پاک شد.";
+}
+
+/* =========================================
+   HINT
+   ========================================= */
+
+function revealOne() {
+    if (gameOver || gameWon) return;
+
+    if (!selected) {
+        statusElement.textContent =
+            "اول یک خانه انتخاب کن.";
+
+        return;
+    }
+
+    const { r, c } = selected;
+
+    if (fixedCells[r][c]) {
+        statusElement.textContent =
+            "این خانه از قبل پر شده است.";
+
+        return;
+    }
+
+    if (hintsLeft <= 0) {
+        statusElement.textContent =
+            "راهنمای بیشتری باقی نمونده.";
+
+        return;
+    }
+
+    if (puzzle[r][c] === solution[r][c]) {
+        statusElement.textContent =
+            "جواب این خانه از قبل درسته.";
+
+        return;
+    }
+
+    const correctValue = solution[r][c];
+
+    puzzle[r][c] = correctValue;
+    notes[r][c].clear();
+    incorrectCells[r][c] = false;
+
+    removePeerNotes(correctValue, r, c);
+
+    hintsLeft--;
+
+    statusElement.textContent =
+        "💡 جواب خانه نمایش داده شد.";
+
+    renderBoard();
+    renderNumberPad();
+
+    updateStats();
+    checkCompletion();
+}
+
+/* =========================================
+   STATS AND PROGRESS
+   ========================================= */
+
+function updateStats() {
+    let empty = 0;
+    let correct = 0;
+
+    for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+
+            if (!puzzle[r][c]) {
+                empty++;
+            }
+
+            if (puzzle[r][c] === solution[r][c]) {
+                correct++;
+            }
+        }
+    }
+
+    const percentage =
+        Math.round((correct / (n * n)) * 100);
+
+    $("emptyCount").textContent = empty;
+
+    $("progressText").textContent =
+        `پیشرفت: ${percentage}٪`;
+
+    $("mistakes").textContent = mistakesLeft;
+    $("hints").textContent = hintsLeft;
+
+    $("timer").textContent =
+        formatTime(elapsedSeconds);
+
+    $("mistakeCard").classList.toggle(
+        "danger",
+        mistakesLeft <= 2
+    );
+}
+
+function updateSelectedText() {
+    if (!selected) {
+        $("selectedText").textContent =
+            "خانه‌ای انتخاب نشده";
+
+        return;
+    }
+
+    $("selectedText").textContent =
+        `سطر ${selected.r + 1} - ستون ${selected.c + 1}`;
+}
+
+/* =========================================
+   COMPLETION
+   ========================================= */
+
+function checkCompletion() {
+    let completed = true;
+
+    for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+            if (puzzle[r][c] !== solution[r][c]) {
+                completed = false;
+                break;
+            }
+        }
+
+        if (!completed) break;
+    }
+
+    if (completed) {
+        finishGame(true);
+    }
+}
+
+function finishGame(won) {
+    gameOver = true;
+    gameWon = won;
+
+    stopTimer();
+
+    renderNumberPad();
+
+    if (won) {
+        statusElement.textContent =
+            `🎉 تبریک! جدول رو در ${formatTime(elapsedSeconds)} حل کردی.`;
+    } else {
+        statusElement.textContent =
+            "⛔ فرصت اشتباهاتت تموم شد! برای شروع دوباره جدول جدید بساز.";
+    }
+}
+
+/* =========================================
+   KEYBOARD
+   ========================================= */
+
+function moveSelection(dr, dc) {
+    if (!selected) {
+        selected = { r: 0, c: 0 };
+    } else {
+        selected = {
+            r: Math.max(0, Math.min(n - 1, selected.r + dr)),
+            c: Math.max(0, Math.min(n - 1, selected.c + dc))
+        };
+    }
+
+    renderBoard();
+    renderNumberPad();
+    updateSelectedText();
+}
+
+document.addEventListener("keydown", event => {
+    if (
+        event.ctrlKey ||
+        event.altKey ||
+        event.metaKey
+    ) return;
+
+    const key = event.key.toUpperCase();
+
+    if (event.key === "ArrowUp") {
+        event.preventDefault();
+        moveSelection(-1, 0);
+        return;
+    }
+
+    if (event.key === "ArrowDown") {
+        event.preventDefault();
+        moveSelection(1, 0);
+        return;
+    }
+
+    if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        moveSelection(0, 1);
+        return;
+    }
+
+    if (event.key === "ArrowRight") {
+        event.preventDefault();
+        moveSelection(0, -1);
+        return;
+    }
+
+    if (
+        event.key === "Backspace" ||
+        event.key === "Delete"
+    ) {
+        event.preventDefault();
+        eraseSelected();
+        return;
+    }
+
+    if (symbols.slice(0, n).includes(key)) {
+        event.preventDefault();
+        enterNumber(key);
+    }
+});
+
+/* =========================================
+   EVENTS
+   ========================================= */
+
+$("newPuzzle").addEventListener(
+    "click",
+    startNewPuzzle
+);
+
+$("pencilButton").addEventListener(
+    "click",
+    togglePencil
+);
+
+$("eraseButton").addEventListener(
+    "click",
+    eraseSelected
+);
+
+$("hintButton").addEventListener(
+    "click",
+    revealOne
+);
+
+function startNewPuzzle() {
+    n = Number($("gridSize").value);
+
+    [boxRows, boxCols] =
+        getBoxDimensions(n);
+
+    createPuzzle();
+}
+
+$("gridSize").addEventListener(
+    "change",
+    startNewPuzzle
+);
+
+$("difficulty").addEventListener(
+    "change",
+    startNewPuzzle
+);
+
+/* =========================================
+   INITIALIZE
+   ========================================= */
+
+startNewPuzzle();
+
+</script>
+
+</body>
+</html>

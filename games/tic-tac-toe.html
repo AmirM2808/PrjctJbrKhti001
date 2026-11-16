@@ -1,0 +1,476 @@
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بازی دوز | بازی‌خونه</title>
+    <link rel="stylesheet" href="../style.css">
+    <script src="../app.js" defer></script>
+
+    <style>
+        /* رنگ جداگانه برای بازیکن اول و دوم */
+        .tic-cell.player-one svg {
+            stroke: var(--primary);
+        }
+
+        .tic-cell.player-two svg {
+            stroke: #e45b70;
+        }
+
+        /* فقط خانه‌های برنده روشن می‌شوند */
+        .tic-cell.winner {
+            background: var(--primary-soft, rgba(120, 90, 220, 0.2));
+            box-shadow: 0 0 18px var(--primary);
+            border-color: var(--primary);
+        }
+
+        .tic-cell.winner svg {
+            stroke: var(--primary);
+        }
+
+        .tic-cell.player-two.winner svg {
+            stroke: #e45b70;
+        }
+    </style>
+</head>
+
+<body>
+<header class="topbar">
+    <a class="brand" href="../index.html">
+        <span class="brand-icon">🎮</span>
+        <span>بازی‌خونه</span>
+    </a>
+
+    <div class="topbar-actions">
+        <button class="icon-button" id="themeButton">☀️</button>
+
+        <div class="palette-wrap">
+            <button class="icon-button" id="paletteButton">🎨</button>
+            <div class="palette-menu" id="paletteMenu">
+                <p>انتخاب رنگ اصلی</p>
+                <button class="palette-option" data-palette="violet"><span class="color-dot violet-dot"></span> بنفش</button>
+                <button class="palette-option" data-palette="blue"><span class="color-dot blue-dot"></span> آبی</button>
+                <button class="palette-option" data-palette="green"><span class="color-dot green-dot"></span> سبز</button>
+                <button class="palette-option" data-palette="orange"><span class="color-dot orange-dot"></span> نارنجی</button>
+                <button class="palette-option" data-palette="pink"><span class="color-dot pink-dot"></span> صورتی</button>
+            </div>
+        </div>
+    </div>
+</header>
+
+<main class="page-content">
+    <a class="back-link" href="../index.html">← بازگشت به منوی اصلی</a>
+
+    <section class="page-heading">
+        <span class="eyebrow">TIC TAC TOE</span>
+        <h1>بازی دوز</h1>
+        <p>شکل مهره‌ها و اندازه‌ی صفحه رو انتخاب کن و بازی رو شروع کن.</p>
+    </section>
+
+    <section class="panel">
+        <div class="controls">
+            <div class="control-group">
+                <label for="boardSize">اندازه‌ی صفحه</label>
+                <select id="boardSize">
+                    <option value="3">۳ × ۳</option>
+                    <option value="4">۴ × ۴</option>
+                    <option value="5">۵ × ۵</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="playerShape">مهره‌ی بازیکن اول</label>
+                <select id="playerShape">
+                    <option value="x">ضربدر</option>
+                    <option value="o">دایره</option>
+                    <option value="triangle">مثلث</option>
+                    <option value="square">مربع</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="botShape">مهره‌ی بازیکن دوم / ربات</label>
+                <select id="botShape">
+                    <option value="o">دایره</option>
+                    <option value="x">ضربدر</option>
+                    <option value="triangle">مثلث</option>
+                    <option value="square">مربع</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="gameMode">حالت بازی</label>
+                <select id="gameMode">
+                    <option value="bot">بازی با ربات</option>
+                    <option value="two">دو نفره</option>
+                </select>
+            </div>
+
+            <button class="primary-button" id="newGame">بازی جدید</button>
+        </div>
+
+        <p class="status-message" id="status">نوبت شماست.</p>
+
+        <div class="tic-board" id="board" style="--board-size:3"></div>
+
+        <div style="text-align:center">
+            <button class="secondary-button" id="restart">شروع دوباره</button>
+        </div>
+    </section>
+</main>
+
+<script>
+"use strict";
+
+const boardElement = document.getElementById("board");
+const statusElement = document.getElementById("status");
+
+const sizeSelect = document.getElementById("boardSize");
+const playerSelect = document.getElementById("playerShape");
+const botSelect = document.getElementById("botShape");
+const modeSelect = document.getElementById("gameMode");
+
+const shapeNames = {
+    x: "ضربدر",
+    o: "دایره",
+    triangle: "مثلث",
+    square: "مربع"
+};
+
+let size = 3;
+let winLength = 3;
+
+let cells = [];
+let owners = [];
+
+let currentPlayer = 1;
+let gameOver = false;
+
+let playerShape = "x";
+let botShape = "o";
+let mode = "bot";
+
+let winningLine = [];
+let gameVersion = 0;
+
+function shapeSVG(shape) {
+    const shapes = {
+        x: '<path d="M25 25 L75 75 M75 25 L25 75"/>',
+        o: '<circle cx="50" cy="50" r="32"/>',
+        triangle: '<path d="M50 13 L88 83 L12 83 Z"/>',
+        square: '<rect x="19" y="19" width="62" height="62" rx="5"/>'
+    };
+
+    return `<svg viewBox="0 0 100 100" aria-hidden="true">${shapes[shape]}</svg>`;
+}
+
+/*
+    تعیین تعداد مهره‌های لازم برای برد:
+    3×3 = 3
+    4×4 = 3
+    5×5 = 4
+*/
+function getRequiredLength() {
+    if (size === 5) return 4;
+    return 3;
+}
+
+/*
+    تمام مسیرهای ممکن را بررسی می‌کند.
+    مسیرها شامل افقی، عمودی و دو قطر هستند.
+    طول هر مسیر برابر winLength است.
+*/
+function getLines() {
+    const lines = [];
+    const directions = [
+        [0, 1],  // افقی
+        [1, 0],  // عمودی
+        [1, 1],  // قطر اصلی
+        [1, -1]  // قطر فرعی
+    ];
+
+    for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+
+            for (const [dr, dc] of directions) {
+                const endR = r + (winLength - 1) * dr;
+                const endC = c + (winLength - 1) * dc;
+
+                if (
+                    endR < 0 || endR >= size ||
+                    endC < 0 || endC >= size
+                ) {
+                    continue;
+                }
+
+                const line = [];
+
+                for (let i = 0; i < winLength; i++) {
+                    const row = r + i * dr;
+                    const col = c + i * dc;
+
+                    line.push(row * size + col);
+                }
+
+                lines.push(line);
+            }
+        }
+    }
+
+    return lines;
+}
+
+/*
+    تشخیص برنده با توجه به تعداد مهره‌های لازم.
+    مقدار owner مشخص می‌کند کدام بازیکن برنده شده است.
+*/
+function getWinner() {
+    winningLine = [];
+
+    for (const line of getLines()) {
+        const firstIndex = line[0];
+        const firstOwner = owners[firstIndex];
+
+        if (
+            firstOwner &&
+            line.every(index => owners[index] === firstOwner)
+        ) {
+            winningLine = line;
+            return firstOwner;
+        }
+    }
+
+    return null;
+}
+
+function renderBoard() {
+    boardElement.innerHTML = "";
+    boardElement.style.setProperty("--board-size", size);
+
+    cells.forEach((value, index) => {
+        const button = document.createElement("button");
+
+        button.className = "tic-cell";
+        button.disabled = Boolean(value) || gameOver;
+
+        if (value) {
+            button.classList.add(`shape-${value}`);
+
+            if (owners[index] === 1) {
+                button.classList.add("player-one");
+            } else {
+                button.classList.add("player-two");
+            }
+
+            button.innerHTML = shapeSVG(value);
+        }
+
+        /*
+            فقط خانه‌های خط برنده روشن می‌شوند.
+            خانه‌های معمولی هیچ‌وقت کلاس winner نمی‌گیرند.
+        */
+        if (winningLine.includes(index)) {
+            button.classList.add("winner");
+        }
+
+        button.setAttribute(
+            "aria-label",
+            value
+                ? `خانه ${index + 1}: ${shapeNames[value]}، بازیکن ${owners[index]}`
+                : `خانه خالی ${index + 1}`
+        );
+
+        button.addEventListener("click", () => play(index));
+
+        boardElement.appendChild(button);
+    });
+}
+
+function updateStatus(message) {
+    statusElement.textContent = message;
+}
+
+function finishIfNeeded() {
+    const winner = getWinner();
+
+    if (winner) {
+        gameOver = true;
+
+        if (mode === "two") {
+            updateStatus(
+                winner === 1
+                    ? "🎉 بازیکن اول برنده شد!"
+                    : "🎉 بازیکن دوم برنده شد!"
+            );
+        } else {
+            updateStatus(
+                winner === 1
+                    ? "🎉 تبریک! شما برنده شدید."
+                    : "ربات برنده شد! دوباره تلاش کن."
+            );
+        }
+
+        renderBoard();
+        return true;
+    }
+
+    if (cells.every(Boolean)) {
+        gameOver = true;
+        updateStatus("بازی مساوی شد!");
+        renderBoard();
+        return true;
+    }
+
+    return false;
+}
+
+function play(index) {
+    if (gameOver || cells[index]) return;
+
+    const shape = currentPlayer === 1
+        ? playerShape
+        : botShape;
+
+    cells[index] = shape;
+    owners[index] = currentPlayer;
+
+    if (finishIfNeeded()) return;
+
+    if (mode === "two") {
+        currentPlayer = currentPlayer === 1 ? 2 : 1;
+
+        updateStatus(
+            currentPlayer === 1
+                ? "نوبت بازیکن اول"
+                : "نوبت بازیکن دوم"
+        );
+
+        renderBoard();
+        return;
+    }
+
+    currentPlayer = 2;
+
+    updateStatus("ربات در حال فکر کردن است...");
+    renderBoard();
+
+    const currentVersion = gameVersion;
+
+    setTimeout(() => {
+        if (currentVersion === gameVersion) {
+            botMove();
+        }
+    }, 400);
+}
+
+/*
+    بررسی حرکت‌های برنده یا دفاعی ربات.
+    از owners برای تشخیص بازیکن استفاده می‌کنیم،
+    بنابراین انتخاب شکل یکسان مشکلی ایجاد نمی‌کند.
+*/
+function findTacticalMove(owner) {
+    for (let i = 0; i < cells.length; i++) {
+        if (cells[i]) continue;
+
+        cells[i] = owner === 1 ? playerShape : botShape;
+        owners[i] = owner;
+
+        const wins = Boolean(getWinner());
+
+        cells[i] = null;
+        owners[i] = null;
+
+        winningLine = [];
+
+        if (wins) {
+            return i;
+        }
+    }
+
+    return null;
+}
+
+function botMove() {
+    if (gameOver || mode !== "bot" || currentPlayer !== 2) {
+        return;
+    }
+
+    const empty = cells
+        .map((value, index) => value ? -1 : index)
+        .filter(index => index !== -1);
+
+    if (!empty.length) return;
+
+    // اولویت اول: حرکت برنده برای ربات
+    let choice = findTacticalMove(2);
+
+    // اولویت دوم: جلوگیری از برد بازیکن
+    if (choice === null) {
+        choice = findTacticalMove(1);
+    }
+
+    // اولویت سوم: حرکت تصادفی
+    if (choice === null) {
+        choice = empty[Math.floor(Math.random() * empty.length)];
+    }
+
+    cells[choice] = botShape;
+    owners[choice] = 2;
+
+    if (finishIfNeeded()) return;
+
+    currentPlayer = 1;
+
+    updateStatus("نوبت شماست.");
+    renderBoard();
+}
+
+/*
+    شروع بازی جدید
+*/
+function startGame() {
+    gameVersion++;
+
+    size = Number(sizeSelect.value);
+    winLength = getRequiredLength();
+
+    playerShape = playerSelect.value;
+    botShape = botSelect.value;
+    mode = modeSelect.value;
+
+    cells = Array(size * size).fill(null);
+    owners = Array(size * size).fill(null);
+
+    currentPlayer = 1;
+    gameOver = false;
+    winningLine = [];
+
+    updateStatus(
+        mode === "two"
+            ? "نوبت بازیکن اول"
+            : "نوبت شماست."
+    );
+
+    renderBoard();
+}
+
+/*
+    هر تغییر در تنظیمات بلافاصله بازی را از نو آغاز می‌کند.
+*/
+sizeSelect.addEventListener("change", startGame);
+playerSelect.addEventListener("change", startGame);
+botSelect.addEventListener("change", startGame);
+modeSelect.addEventListener("change", startGame);
+
+document.getElementById("newGame")
+    .addEventListener("click", startGame);
+
+document.getElementById("restart")
+    .addEventListener("click", startGame);
+
+startGame();
+
+</script>
+</body>
+</html>
